@@ -1,20 +1,36 @@
 /**
- * BasicHTTPClient.ino
- *
- *  Created on: 24.05.2015
- *
+ * Smart de Plat - Der smarte Untersetzer
+ * Project C - HCI | Universität Siegen
+ * Rober Fischbach & Enzo Frenker-Hackfort
+ * 
+ * Use w/ NodeMcu v3
+ * 
+ * Additional libs used: HX711_ADC by Olav Kallhovd
  */
 
 #include <Arduino.h>
+#include <HX711_ADC.h>
+#if defined(ESP8266)|| defined(ESP32) || defined(AVR)
+#include <EEPROM.h>
+#endif
+
 
 #include <WiFi.h>
 #include <WiFiMulti.h>
-
 #include <HTTPClient.h>
-
 #define USE_SERIAL Serial
-
 WiFiMulti wifiMulti;
+
+//Pins:
+const int HX711_dout = 4; //mcu > HX711 dout pin
+const int HX711_sck = 5; //mcu > HX711 sck pin
+
+//HX711 constructor:
+HX711_ADC LoadCell(HX711_dout, HX711_sck);
+
+const int calVal_eepromAdress = 0;
+unsigned long t = 0;
+
 
 /*
 const char* ca = \ 
@@ -61,107 +77,101 @@ void setup() {
         delay(1000);
     }
 
-    wifiMulti.addAP("Doofenshmirtz Inc.", "50236720445980277318");
+    wifiMulti.addAP("Doofenshmirtz Inc.", "50236720445980277318"); //Wifi Settings
+
+    LoadCell.begin();
+    
+    float calibrationValue; // calibration value
+    calibrationValue = 384.86; //From Calibration.ino -> Sample of glass with weight of 292.1g and our enclosure 
+  
+    unsigned long stabilizingtime = 2000; // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
+    boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
+
+    //Init Cell w/ calibrationValue
+    LoadCell.start(stabilizingtime, _tare);
+    if (LoadCell.getTareTimeoutFlag()) {
+      Serial.println("Timeout, check MCU>HX711 wiring and pin designations");
+      while (1);
+     }
+    else {
+      LoadCell.setCalFactor(calibrationValue); // set calibration value (float)
+      Serial.println("Startup is complete");
+    }
 
 }
 
 void loop() {
-    // wait for WiFi connection
-    if((wifiMulti.run() == WL_CONNECTED)) {
 
-        HTTPClient http;
+  //LoadCell Polling
+  static boolean newDataReady = 0;
+  const int serialPrintInterval = 0; //increase value to slow down serial print activity
 
-        USE_SERIAL.print("[HTTP] begin...\n");
-        // configure traged server and url
-        //http.begin("https://www.howsmyssl.com/a/check", ca); //HTTPS
-        http.begin("http://efh.pythonanywhere.com/level/0001/100"); //HTTP
+  // check for new data/start next conversion:
+  if (LoadCell.update()) newDataReady = true;
 
-        USE_SERIAL.print("[HTTP] GET...\n");
-        // start connection and send HTTP header
-        int httpCode = http.GET();
-
-        // httpCode will be negative on error
-        if(httpCode > 0) {
-            // HTTP header has been send and Server response header has been handled
-            USE_SERIAL.printf("[HTTP] GET... code: %d\n", httpCode);
-
-            // file found at server
-            if(httpCode == HTTP_CODE_OK) {
-                String payload = http.getString();
-                USE_SERIAL.println(payload);
-            }
-        } else {
-            USE_SERIAL.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
-        }
-
-        http.end();
+  // get smoothed value from the dataset:
+  if (newDataReady) {
+    if (millis() > t + serialPrintInterval) {
+      float i = LoadCell.getData();
+      Serial.print("Load_cell output val: ");
+      Serial.println(i);
+      if (i < 350 && i > 250) { //Check if glass is (nearly) empty or just not in place
+                   //Send Data Loop
+                  // wait for WiFi connection
+                  if((wifiMulti.run() == WL_CONNECTED)) {
+              
+                      HTTPClient http;
+              
+                      USE_SERIAL.print("[HTTP] begin...\n");
+                      // configure traged server and url
+                      //http.begin("https://www.howsmyssl.com/a/check", ca); //HTTPS
+                      http.begin("http://efh.pythonanywhere.com/level/0001/" + String(i)); //HTTP Send Value of Loadcell to ID 0001
+              
+                      USE_SERIAL.print("[HTTP] GET...\n");
+                      // start connection and send HTTP header
+                      int httpCode = http.GET();
+              
+                      // httpCode will be negative on error
+                      if(httpCode > 0) {
+                          // HTTP header has been send and Server response header has been handled
+                          USE_SERIAL.printf("[HTTP] GET... code: %d\n", httpCode);
+              
+                          // file found at server
+                          if(httpCode == HTTP_CODE_OK) {
+                              String payload = http.getString();
+                              USE_SERIAL.println(payload);
+                          }
+                      } else {
+                          USE_SERIAL.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+                      }
+              
+                      http.end();
+                  }
+                  //delay(5000);
+        };
+      newDataReady = 0;
+      t = millis();
     }
+  }
 
-    delay(5000);
+  // receive command from serial terminal, send 't' to initiate tare operation:
+  if (Serial.available() > 0) {
+    char inByte = Serial.read();
+    if (inByte == 't') LoadCell.tareNoDelay();
+  }
 
-        if((wifiMulti.run() == WL_CONNECTED)) {
+  // check if last tare operation is complete:
+  if (LoadCell.getTareStatus() == true) {
+    Serial.println("Tare complete");
+  }
 
-        HTTPClient http;
 
-        USE_SERIAL.print("[HTTP] begin...\n");
-        // configure traged server and url
-        //http.begin("https://www.howsmyssl.com/a/check", ca); //HTTPS
-        http.begin("http://efh.pythonanywhere.com/level/0001/50"); //HTTP
 
-        USE_SERIAL.print("[HTTP] GET...\n");
-        // start connection and send HTTP header
-        int httpCode = http.GET();
 
-        // httpCode will be negative on error
-        if(httpCode > 0) {
-            // HTTP header has been send and Server response header has been handled
-            USE_SERIAL.printf("[HTTP] GET... code: %d\n", httpCode);
 
-            // file found at server
-            if(httpCode == HTTP_CODE_OK) {
-                String payload = http.getString();
-                USE_SERIAL.println(payload);
-            }
-        } else {
-            USE_SERIAL.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
-        }
-
-        http.end();
-    }
-
-    delay(5000);
-
-    if((wifiMulti.run() == WL_CONNECTED)) {
-
-        HTTPClient http;
-
-        USE_SERIAL.print("[HTTP] begin...\n");
-        // configure traged server and url
-        //http.begin("https://www.howsmyssl.com/a/check", ca); //HTTPS
-        http.begin("http://efh.pythonanywhere.com/level/0001/25"); //HTTP
-
-        USE_SERIAL.print("[HTTP] GET...\n");
-        // start connection and send HTTP header
-        int httpCode = http.GET();
-
-        // httpCode will be negative on error
-        if(httpCode > 0) {
-            // HTTP header has been send and Server response header has been handled
-            USE_SERIAL.printf("[HTTP] GET... code: %d\n", httpCode);
-
-            // file found at server
-            if(httpCode == HTTP_CODE_OK) {
-                String payload = http.getString();
-                USE_SERIAL.println(payload);
-            }
-        } else {
-            USE_SERIAL.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
-        }
-
-        http.end();
-    }
-
-    delay(5000);
+  
 
     
+
+      
 }
