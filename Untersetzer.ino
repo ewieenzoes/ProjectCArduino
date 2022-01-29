@@ -1,7 +1,7 @@
 /**
  * Smart de Plat - Der smarte Untersetzer
  * Project C - HCI | Universität Siegen
- * Rober Fischbach & Enzo Frenker-Hackfort
+ * Robert Fischbach & Enzo Frenker-Hackfort
  * 
  * Use w/ NodeMcu v3
  * 
