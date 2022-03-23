@@ -1,9 +1,9 @@
 /**
- * Smart de Plat - Der smarte Untersetzer
+ * Smart Coaster - Der smarte Untersetzer
  * Project C - HCI | Universität Siegen
  * Robert Fischbach & Enzo Frenker-Hackfort
  * 
- * Use w/ NodeMcu v3
+ * Tested w/ NodeMcu v3
  * 
  * Additional libs used: HX711_ADC by Olav Kallhovd
  */
@@ -77,12 +77,12 @@ void setup() {
         delay(1000);
     }
 
-    wifiMulti.addAP("Doofenshmirtz Inc.", "50236720445980277318"); //Wifi Settings
+    wifiMulti.addAP("FabLabGast", "FabLabSiegen"); //Wifi Settings
 
     LoadCell.begin();
     
     float calibrationValue; // calibration value
-    calibrationValue = 384.86; //From Calibration.ino -> Sample of glass with weight of 292.1g and our enclosure 
+    calibrationValue = -317.64; //From Calibration.ino -> Sample of glass with weight of 292.1g and our enclosure 
   
     unsigned long stabilizingtime = 2000; // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
     boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
@@ -104,7 +104,7 @@ void loop() {
 
   //LoadCell Polling
   static boolean newDataReady = 0;
-  const int serialPrintInterval = 0; //increase value to slow down serial print activity
+  const int serialPrintInterval = 10000; //increase value to slow down serial print activity
 
   // check for new data/start next conversion:
   if (LoadCell.update()) newDataReady = true;
@@ -112,10 +112,10 @@ void loop() {
   // get smoothed value from the dataset:
   if (newDataReady) {
     if (millis() > t + serialPrintInterval) {
-      float i = LoadCell.getData();
+      int i = LoadCell.getData();
       Serial.print("Load_cell output val: ");
       Serial.println(i);
-      if (i < 350 && i > 250) { //Check if glass is (nearly) empty or just not in place
+      if (i > 150) { //Check if glass is (nearly) empty or just not in place
                    //Send Data Loop
                   // wait for WiFi connection
                   if((wifiMulti.run() == WL_CONNECTED)) {
@@ -125,7 +125,7 @@ void loop() {
                       USE_SERIAL.print("[HTTP] begin...\n");
                       // configure traged server and url
                       //http.begin("https://www.howsmyssl.com/a/check", ca); //HTTPS
-                      http.begin("http://efh.pythonanywhere.com/level/0001/" + String(i)); //HTTP Send Value of Loadcell to ID 0001
+                      http.begin("http://efh.pythonanywhere.com/level/1/" + String(i)); //HTTP Send Value of Loadcell to ID 1
               
                       USE_SERIAL.print("[HTTP] GET...\n");
                       // start connection and send HTTP header
@@ -163,15 +163,5 @@ void loop() {
   // check if last tare operation is complete:
   if (LoadCell.getTareStatus() == true) {
     Serial.println("Tare complete");
-  }
-
-
-
-
-
-  
-
-    
-
-      
+  }  
 }
