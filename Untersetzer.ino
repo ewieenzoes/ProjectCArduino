@@ -88,7 +88,7 @@ void loop() {
   // get smoothed value from the dataset:
   if (newDataReady) {
     if (millis() > t + serialPrintInterval) {
-      float i = LoadCell.getData();
+      int i = LoadCell.getData();
       Serial.print("Load_cell output val: ");
       Serial.println(i);
       if (i > 150) {
