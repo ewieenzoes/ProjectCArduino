@@ -59,7 +59,7 @@ void setup() {
   LoadCell.begin();
   //LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
   float calibrationValue; // calibration value (see example file "Calibration.ino")
-  calibrationValue = 121.0; // uncomment this if you want to set the calibration value in the sketch
+  calibrationValue = -178.04; // uncomment this if you want to set the calibration value in the sketch
   #if defined(ESP8266) || defined(ESP32)
   //EEPROM.begin(512); // uncomment this if you use ESP8266/ESP32 and want to fetch the calibration value from eeprom
   #endif
