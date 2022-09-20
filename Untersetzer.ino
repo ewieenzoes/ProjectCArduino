@@ -54,12 +54,12 @@ void setup() {
   }
 
   WiFi.mode(WIFI_STA);
-  WiFiMulti.addAP("Doofenshmirtz Inc.", "50236720445980277318");
+  WiFiMulti.addAP("untersetzer.digital", "Smart_Coaster_EFHRF");
 
   LoadCell.begin();
   //LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
   float calibrationValue; // calibration value (see example file "Calibration.ino")
-  calibrationValue = -178.04; // uncomment this if you want to set the calibration value in the sketch
+  calibrationValue = 75.46; // uncomment this if you want to set the calibration value in the sketch
   #if defined(ESP8266) || defined(ESP32)
   //EEPROM.begin(512); // uncomment this if you use ESP8266/ESP32 and want to fetch the calibration value from eeprom
   #endif
@@ -80,7 +80,7 @@ void setup() {
 
 void loop() {
   static boolean newDataReady = 0;
-  const int serialPrintInterval = 0; //increase value to slow down serial print activity
+  const int serialPrintInterval = 10000; //increase value to slow down serial print activity
 
   // check for new data/start next conversion:
   if (LoadCell.update()) newDataReady = true;
@@ -101,7 +101,7 @@ void loop() {
               HTTPClient http;
       
               Serial.print("[HTTP] begin...\n");
-              if (http.begin(client, "http://efh.pythonanywhere.com/level/1/" + String(i))) { // HTTP
+              if (http.begin(client, "http://www.untersetzer.digital/level/01/" + String(i))) { // HTTP
       
                 Serial.print("[HTTP] GET...\n");
                 // start connection and send HTTP header
@@ -142,6 +142,4 @@ void loop() {
   if (LoadCell.getTareStatus() == true) {
     Serial.println("Tare complete");
   }
-
-  delay(5000);
 }
